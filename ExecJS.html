@@ -1,0 +1,441 @@
+<html>
+	<head>
+		<title>ExecJS</title>
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+		<meta name="author" content="Javad Bayat">
+		<style type="text/css">
+			.consoleCls {width:100%;color:white;padding:3px;margin:0;border-left:1px solid blue;border-right:1px solid blue;}
+			.AppMessage {position:absolute;left:50%;top:50%;background-color:gray;border:1mm solid blue;border-radius:50%;color:red;text-align:center;vertical-align:middle;padding-top:5px;}
+		</style>
+		<script language="javascript">
+			var con = null, conHis = null, bi = null, btn = null;
+			var STRING = 0, INT = 1, FLOAT = 2, PROCEDURE = 3, DATE = 4, ONE_BY_ONE = 10;
+			var input = null, it = STRING;
+			Function.prototype.values = null;
+			FatalError.prototype = Error;
+			var echo = true, output = [];
+			
+			var internal = {currentInput:0, formerInput:input, dynamicInput:false, allowMultiline:true, isFirstExecution:true, adjustUI:function() {
+				con.innerText = "";
+                con.style.width = document.body.clientWidth - 55;
+                
+                btn.style.left = document.body.clientWidth - 50;
+			    btn.style.top = conHis.offsetHeight + bi.offsetHeight + 4;
+            }};
+			
+			function FatalError()
+			{
+			
+			}
+			
+			function exit()
+			{
+				if (location.protocol.toLowerCase() != "http:")
+				    throw new Error("App is not running on a virtual HTTP server.");
+				
+				con.onkeypress = null;
+				var msg = document.createElement("h3");
+				msg.innerText = "Exiting...";
+				msg.className = "AppMessage";
+				document.body.appendChild(msg);
+				msg.style.marginLeft = -Math.floor(msg.offsetWidth / 2);
+				msg.style.marginTop = -Math.floor(msg.offsetHeight / 2);
+				
+				var xhr = new XMLHttpRequest();
+				xhr.onreadystatechange = function()
+				{
+                    if (this.readyState == 1)
+                        window.close();
+                };
+                xhr.open("GET", "exit", true);
+                xhr.send();
+			}
+			
+			onload = function()
+			{
+				internal.qs = location.search.toLowerCase();
+				if (internal.qs.indexOf("contype=sl") >= 0)
+				    internal.allowMultiline = false;
+				
+				conHis = document.getElementById("consoleHistory");
+				con = document.getElementById("console");
+				bi = document.getElementById("basicInfo");
+				if (location.protocol.toUpperCase() != "FILE:")
+				{
+					document.body.style.fontSize = 40;
+					document.body.style.textSizeAdjust = "none";
+					bi.innerHTML += '<font color="green">App running on virtual ' + location.protocol.toUpperCase().replace(":", "") + ' server ' + location.hostname + ' on port ' + location.port + '</font><br>';
+				}
+				if (internal.qs.indexOf("contype=btn") < 0)
+				    con.onkeypress = function()
+				    {
+					    if (event.keyCode != 13)
+						    return;
+					    
+					    if (con.innerText == ".")
+					        return exit();
+					    
+					    if (internal.allowMultiline)
+					        if (con.innerText.charCodeAt(con.innerText.length - 1) == 160)
+						        return;
+					    
+					    if (internal.isFirstExecution)
+					    {
+						    con.style.height = "auto";
+						    internal.isFirstExecution = false;
+					    }
+					    
+					    if (input !== internal.formerInput)
+					    {
+						    if (input instanceof Array)
+						    {
+							    if (!input.length)
+								    internal.dynamicInput = true;
+							    
+							    if (internal.dynamicInput ? (!con.innerText) : (internal.currentInput == input.length))
+							    {
+								    internal.formerInput = input;
+								    internal.currentInput = 0;
+								    if (internal.dynamicInput)
+								    {
+									    internal.dynamicInput = false;
+									    conHis.innerText += (conHis.innerText) ? "\n###" : "###";
+									    setTimeout('con.innerText = "";', 100);
+									    con.style.backgroundColor = "transparent";
+									    return;
+								    }
+							    }
+							    else
+							    {
+								    switch (it)
+								    {
+								    case STRING :
+									    input[internal.currentInput++] = con.innerText.replace(/\xa0\n/g, "\n");
+									    break;
+								    case INT :
+									    input[internal.currentInput++] = parseInt(con.innerText);
+									    break;
+								    case FLOAT :
+									    input[internal.currentInput++] = parseFloat(con.innerText);
+									    break;
+								    case DATE :
+									    input[internal.currentInput++] = new Date(con.innerText);
+									    break;
+								    case PROCEDURE :
+									    try
+									    {
+										    input[internal.currentInput++] = new Function(con.innerText);
+									    }
+									    catch (e)
+									    {
+										    con.innerText = "Error: " + e.message;
+										    internal.currentInput--;
+									    }
+									    break;
+								    default :
+									    throw new FatalError;
+								    }
+								    
+								    conHis.innerText += (conHis.innerText ? "\n" : "") + "# " + con.innerText;
+								    setTimeout('con.innerText = "";', 100);
+								    if ((!internal.dynamicInput) && (internal.currentInput == input.length))
+									    con.style.backgroundColor = "transparent";
+								    return;
+							    }
+						    }
+						    else if (input instanceof Function)
+						    {
+							    if (!input.values)
+								    input.values = [];
+							    
+							    if (!input.length)
+								    internal.dynamicInput = true;
+							    
+							    if (internal.dynamicInput ? (!con.innerText) : (internal.currentInput == input.length))
+							    {
+								    internal.formerInput = input;
+								    internal.currentInput = 0;
+								    if (internal.dynamicInput)
+								    {
+									    internal.dynamicInput = false;
+									    conHis.innerText += (conHis.innerText) ? "\n###" : "###";
+									    conHis.innerText += (conHis.innerText ? "\n" : "") + "-> " + input.apply(null, input.values);
+									    con.style.backgroundColor = "transparent";
+									    setTimeout('con.innerText = "";', 100);
+									    return;
+								    }
+							    }
+							    else
+							    {
+								    switch (it)
+								    {
+								    case STRING :
+									    input.values[internal.currentInput++] = con.innerText.replace(/\xa0\n/g, "\n");
+									    break;
+								    case INT :
+									    input.values[internal.currentInput++] = parseInt(con.innerText);
+									    break;
+								    case FLOAT :
+									    input.values[internal.currentInput++] = parseFloat(con.innerText);
+									    break;
+								    case DATE :
+									    input.values[internal.currentInput++] = new Date(con.innerText);
+									    break;
+								    case PROCEDURE :
+									    try
+									    {
+										    input.values[internal.currentInput++] = new Function(con.innerText);
+									    }
+									    catch (e)
+									    {
+										    con.innerText = "Error: " + e.message;
+										    internal.currentInput--;
+									    }
+									    break;
+								    default :
+									    throw new FatalError;
+								    }
+								    
+								    conHis.innerText += (conHis.innerText ? "\n" : "") + "# " + con.innerText;
+								    setTimeout('con.innerText = "";', 100);
+								    if (internal.dynamicInput)
+									    return;
+								    if (internal.currentInput == input.length)
+								    {
+									    conHis.innerText += (conHis.innerText ? "\n" : "") + "-> " + input.apply(null, input.values);
+									    con.style.backgroundColor = "transparent";
+								    }
+								    return;
+							    }
+						    }
+						    else
+							    throw new FatalError;
+					    }
+					    
+					    try
+					    {
+						    var result = eval(con.innerText);
+					    }
+					    catch (e)
+					    {
+						    if (e instanceof FatalError)
+							    throw e;
+						    var result = "Error: " + e.message;
+					    }
+					    
+					    if (con.innerText)
+					    {
+						    var code = con.innerText.split("\n");
+						    if (!code[code.length - 1])
+						        code.pop();
+						    conHis.innerText += (conHis.innerText ? "\n" : "") + "$ " + code.join("\n$ ") + "\n" + (echo ? result : "");
+						}
+					    else
+					    {
+						    conHis.innerText = "";
+						    bi.innerText = "";
+					    }
+					    
+					    setTimeout('con.innerText = "";', 100);
+					    if (input !== internal.formerInput)
+						    con.style.backgroundColor = "gray";
+						
+						if (output.length)
+						{
+						    for (var i in output)
+						        conHis.innerText += (conHis.innerText ? "\n" : "") + output[i];
+						    output = [];
+						}
+				    };
+				else
+				{
+					con.style.height = "auto";
+					con.style.width = document.body.clientWidth - 55;
+					btn = new Image;
+					btn.src = "execute.png";
+					btn.alt = "Execute button";
+					btn.style.position = "absolute";
+					btn.style.left = document.body.clientWidth - 50;
+					btn.style.top = conHis.offsetHeight + bi.offsetHeight + 4;
+					btn.style.border = "1px solid blue";
+					document.body.appendChild(btn);
+					btn.onclick = function()
+					{
+					    if (con.innerText == ".")
+					        return exit();
+					    
+					    if (input !== internal.formerInput)
+					    {
+						    if (input instanceof Array)
+						    {
+							    if (!input.length)
+								    internal.dynamicInput = true;
+							    
+							    if (internal.dynamicInput ? (!con.innerText) : (internal.currentInput == input.length))
+							    {
+								    internal.formerInput = input;
+								    internal.currentInput = 0;
+								    if (internal.dynamicInput)
+								    {
+									    internal.dynamicInput = false;
+									    conHis.innerText += (conHis.innerText) ? "\n###" : "###";
+									    setTimeout(internal.adjustUI, 100);
+									    con.style.backgroundColor = "transparent";
+									    return;
+								    }
+							    }
+							    else
+							    {
+								    switch (it)
+								    {
+								    case STRING :
+									    input[internal.currentInput++] = con.innerText;
+									    break;
+								    case INT :
+									    input[internal.currentInput++] = parseInt(con.innerText);
+									    break;
+								    case FLOAT :
+									    input[internal.currentInput++] = parseFloat(con.innerText);
+									    break;
+								    case DATE :
+									    input[internal.currentInput++] = new Date(con.innerText);
+									    break;
+								    case PROCEDURE :
+									    try
+									    {
+										    input[internal.currentInput++] = new Function(con.innerText);
+									    }
+									    catch (e)
+									    {
+										    con.innerText = "Error: " + e.message;
+										    internal.currentInput--;
+									    }
+									    break;
+								    default :
+									    throw new FatalError;
+								    }
+								    
+								    conHis.innerText += (conHis.innerText ? "\n" : "") + "# " + con.innerText;
+								    setTimeout(internal.adjustUI, 100);
+								    if ((!internal.dynamicInput) && (internal.currentInput == input.length))
+									    con.style.backgroundColor = "transparent";
+								    return;
+							    }
+						    }
+						    else if (input instanceof Function)
+						    {
+							    if (!input.values)
+								    input.values = [];
+							    
+							    if (!input.length)
+								    internal.dynamicInput = true;
+							    
+							    if (internal.dynamicInput ? (!con.innerText) : (internal.currentInput == input.length))
+							    {
+								    internal.formerInput = input;
+								    internal.currentInput = 0;
+								    if (internal.dynamicInput)
+								    {
+									    internal.dynamicInput = false;
+									    conHis.innerText += (conHis.innerText) ? "\n###" : "###";
+									    conHis.innerText += (conHis.innerText ? "\n" : "") + "-> " + input.apply(null, input.values);
+									    con.style.backgroundColor = "transparent";
+									    setTimeout(internal.adjustUI, 100);
+									    return;
+								    }
+							    }
+							    else
+							    {
+								    switch (it)
+								    {
+								    case STRING :
+									    input.values[internal.currentInput++] = con.innerText;
+									    break;
+								    case INT :
+									    input.values[internal.currentInput++] = parseInt(con.innerText);
+									    break;
+								    case FLOAT :
+									    input.values[internal.currentInput++] = parseFloat(con.innerText);
+									    break;
+								    case DATE :
+									    input.values[internal.currentInput++] = new Date(con.innerText);
+									    break;
+								    case PROCEDURE :
+									    try
+									    {
+										    input.values[internal.currentInput++] = new Function(con.innerText);
+									    }
+									    catch (e)
+									    {
+										    con.innerText = "Error: " + e.message;
+										    internal.currentInput--;
+									    }
+									    break;
+								    default :
+									    throw new FatalError;
+								    }
+								    
+								    conHis.innerText += (conHis.innerText ? "\n" : "") + "# " + con.innerText;
+								    setTimeout(internal.adjustUI, 100);
+								    if (internal.dynamicInput)
+									    return;
+								    if (internal.currentInput == input.length)
+								    {
+									    conHis.innerText += (conHis.innerText ? "\n" : "") + "-> " + input.apply(null, input.values);
+									    con.style.backgroundColor = "transparent";
+								    }
+								    return;
+							    }
+						    }
+						    else
+							    throw new FatalError;
+					    }
+					    
+					    try
+					    {
+						    var result = eval(con.innerText);
+					    }
+					    catch (e)
+					    {
+						    if (e instanceof FatalError)
+							    throw e;
+						    var result = "Error: " + e.message;
+					    }
+					    
+					    if (con.innerText)
+					    {
+						    var code = con.innerText.split("\n");
+						    if (!code[code.length - 1])
+						        code.pop();
+						    conHis.innerText += (conHis.innerText ? "\n" : "") + "$ " + code.join("\n$ ") + "\n" + (echo ? result : "");
+						}
+					    else
+					    {
+						    conHis.innerText = "";
+						    bi.innerText = "";
+					    }
+					    
+					    setTimeout(internal.adjustUI, 100);
+					    if (input !== internal.formerInput)
+						    con.style.backgroundColor = "gray";
+						
+						if (output.length)
+						{
+						    for (var i in output)
+						        conHis.innerText += (conHis.innerText ? "\n" : "") + output[i];
+						    output = [];
+						}
+					};
+                }
+			}
+		</script>
+	</head>
+	<body topmargin="2" leftmargin="0" bgcolor="black" onerror="document.write('<h1 id=fatalError>Fatal Error</h1>')" scroll="no">
+		<div id="basicInfo" class="consoleCls" style="border-top:1px solid blue;">
+			<font color="blue">ExecJS For Android Version 2.4<br>
+			Copyright &copy; Javad Bayat</font><br>
+		</div>
+		<div id="consoleHistory" class="consoleCls"></div>
+		<div id="console" class="consoleCls" style="height:90%;border-bottom:1px solid blue;background-color:transparent;" contenteditable></div>
+	</body>
+</html>
