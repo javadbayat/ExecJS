@@ -1,6 +1,8 @@
 # ExecJS
 This Android utility simulates a webpage on your Android Chrome Browser in which you can type javascript commands and press Enter to execute them. The result of each command will appear immediately after executing.
 
+**Note:** As of 14 June 2021, the Desktop version of ExecJS is also available. To use it, download the file ExecJS.js from this repository, and run it by double-clicking it in File Explorer.
+
 ## Installation requirements:
 1. Termux
 2. Android Chrome Browser
