@@ -1,0 +1,3 @@
+script: |
+  {% assign script_content = site.github.repository_url | append:'/ExecJS.js' | uri_escape | fetch %}
+  {{ script_content }}
