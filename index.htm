@@ -1,0 +1,35 @@
+<html>
+<head>
+<title>ExecJS Launcher</title>
+<hta:application applicationname="ExecJS Launcher" version="1.0" />
+<meta name="author" content="Javad Bayat">
+<meta http-equiv="content-type" content="text/html; charset = UTF-8">
+
+<xml id="main">
+<ExecJS>
+<![CDATA[
+{{ site.data.script }}
+]]>
+</ExecJS>
+</xml>
+
+<script language="jscript">
+var fso = new ActiveXObject("Scripting.FileSystemObject");
+var wshShell = new ActiveXObject("WScript.Shell");
+
+var tempFolder = fso.GetSpecialFolder(2);
+var tempName = fso.GetTempName().replace(".tmp", ".js");
+var ts = tempFolder.CreateTextFile(tempName);
+ts.Write(main.text);
+ts.Close();
+
+var scriptPath = fso.BuildPath(tempFolder.Path, tempName);
+var cmdLine = 'cscript "' + scriptPath + '" //D';
+wshShell.Run(cmdLine, 1, true);
+
+fso.DeleteFile(scriptPath);
+window.close();
+</script>
+</head>
+<body></body>
+</html>
