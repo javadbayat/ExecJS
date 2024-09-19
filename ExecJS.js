@@ -48,6 +48,9 @@ Number.prototype.toTime = function () {
     return hours + ":" + minutes + ":" + seconds + ":" + period;
 };
 
+var wshShell = WScript.CreateObject("WScript.Shell");
+var FSO = WScript.CreateObject("Scripting.FileSystemObject");
+
 FatalError.prototype = Error;
 //Predefined variables
 var ejs, _internal, _echo = true, _lastres = "", 
@@ -56,10 +59,8 @@ _target = _, _cmdexit = "", _cmdcancel = "#",
 _void = {toString:undefined}, _version = "1.0",
 _args = col2arr(WScript.Arguments), _cmd = "",
 _timing = false, _sdate = null, _edate = null,
-_cmdsetup = "setup", _cmdhelp = "help", _ncmds = 0;
-
-var wshShell = WScript.CreateObject("WScript.Shell");
-var FSO = WScript.CreateObject("Scripting.FileSystemObject");
+_cmdsetup = "setup", _cmdhelp = "help", _ncmds = 0,
+_sysarch = wshShell.Environment.Item("PROCESSOR_ARCHITECTURE");
 
 //Initialization function
 (function() {    
@@ -90,6 +91,11 @@ var FSO = WScript.CreateObject("Scripting.FileSystemObject");
     
     argIndex = findArg("/v", "-v");
     if (argIndex != -1) {
+        if (_sysarch != "x86") {
+            WSH.StdErr.WriteLine("Error: Virtualization is only supported on 32-bit Windows.");
+            WSH.Quit();
+        }
+        
         _ = _target = new ActiveXObject("MSScriptControl.ScriptControl");
         _.Language = "JScript";
         _.CodeObject.WSH = _.CodeObject.WScript = WScript;
@@ -131,13 +137,17 @@ var voice = WScript.CreateObject("SAPI.SpVoice");
 var locator = WScript.CreateObject("WbemScripting.SWbemLocator");
 var wshNetwork = WScript.CreateObject("WScript.Network");
 
-var VBS = WScript.CreateObject("MSScriptControl.ScriptControl");
-VBS.Language = "VBScript";
-VBS.AddObject("WScript", WScript);
-VBS.AddObject("WSH", WSH);
+if (_sysarch == "x86") {
+    var VBS = WScript.CreateObject("MSScriptControl.ScriptControl");
+    VBS.Language = "VBScript";
+    VBS.AddObject("WScript", WScript);
+    VBS.AddObject("WSH", WSH);
 
-VBS.AddCode("Function ConvertArray(jsa)\nDim vba()\nReDim vba(jsa.length - 1)\nDim i, e\ni = 0\nFor Each e In jsa\nIf IsObject(e) Then\nSet vba(i) = e\nElse\nvba(i) = e\nEnd If\ni = i + 1\nNext\nConvertArray = vba\nEnd Function");
-var getVBArray = VBS.Eval('GetRef("ConvertArray")');
+    VBS.AddCode("Function ConvertArray(jsa)\nDim vba()\nReDim vba(jsa.length - 1)\nDim i, e\ni = 0\nFor Each e In jsa\nIf IsObject(e) Then\nSet vba(i) = e\nElse\nvba(i) = e\nEnd If\ni = i + 1\nNext\nConvertArray = vba\nEnd Function");
+    var getVBArray = VBS.Eval('GetRef("ConvertArray")');
+}
+else
+    var VBS = null;
 
 var errInfo = {
     hr: function (errno) {
@@ -421,6 +431,9 @@ function confirm(msg) {
 }
 
 function prompt(msg, def) {
+    if (!VBS)
+        throw new Error("This feature is not currently supported on 64-bit Windows.");
+    
     if (typeof msg == "object") {
         try {
             msg = String(msg);
@@ -470,6 +483,9 @@ function virtualIE(title, dontAttach) {
 }
 
 function virtualJS(dontAttach, dontAddWSH) {
+    if (_sysarch != "x86")
+        throw new Error("Virtualization is only supported on 32-bit Windows.");
+    
     var sc = WScript.CreateObject("MSScriptControl.ScriptControl");
     sc.Language = "JScript";
     var root = sc.CodeObject;
